@@ -17,7 +17,7 @@ logging.basicConfig(filename='training.log',filemode='w',level=logging.INFO, for
 class ImageClassifier(pl.LightningModule):
     def __init__(self, lmd=0):
         super().__init__()
-        self.model = timm.create_model('efficientnet_b0', pretrained=True, num_classes=1)
+        self.model = timm.create_model('resnet50', pretrained=True, num_classes=1)
         self.accuracy = Accuracy(task='binary', threshold=0.5)
         self.recall = Recall(task='binary', threshold=0.5)  
         self.validation_outputs = []
@@ -111,7 +111,7 @@ val_domains = [0, 1, 4]
 lmd_value = 0
 
 if args.predict:
-    test_dl = load_dataloader([0, 1, 2, 3, 4], "test", batch_size=32, num_workers=8)
+    test_dl = load_dataloader([0, 1, 2, 3, 4], "test", batch_size=128, num_workers=4)
     model = ImageClassifier.load_from_checkpoint(args.ckpt_path)
     trainer = pl.Trainer()
     predictions = trainer.predict(model, dataloaders=test_dl)
@@ -124,9 +124,9 @@ if args.predict:
     filename = "preds-" + args.ckpt_path.split("/")[-1]
     df.to_csv(f"outputs/{filename}.csv", index=False)
 else:
-    train_dl = load_dataloader(train_domains, "train", batch_size=32, num_workers=8)
+    train_dl = load_dataloader(train_domains, "train", batch_size=128, num_workers=4)
     logging.info("Training dataloader loaded")
-    val_dl = load_dataloader(val_domains, "val", batch_size=32, num_workers=8)
+    val_dl = load_dataloader(val_domains, "val", batch_size=128, num_workers=4)
     logging.info("Validation dataloader loaded")
 
     if args.reset:
