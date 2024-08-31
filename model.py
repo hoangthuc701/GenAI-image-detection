@@ -11,6 +11,8 @@ from data_split import *
 import logging
 import argparse
 import os
+from PIL import Image
+import torchvision.transforms as transforms
 
 logging.basicConfig(filename='training.log',filemode='w',level=logging.INFO, force=True)
 
@@ -100,10 +102,36 @@ early_stop_callback = EarlyStopping(
     mode="min",
 )
 
+def load_image(image_path, transform=None):
+    # Open image
+    image = Image.open(image_path)
+    
+    # Apply the transformations
+    if transform:
+        image = transform(image)
+    
+    return image
+
+def predict_single_image(image_path, model, transform=None):
+    image = load_image(image_path, transform)
+    
+    # Ensure the model is in evaluation mode
+    model.eval()
+    
+    # No gradient calculation for inference
+    with torch.no_grad():
+        image = image.unsqueeze(0) # Add batch dimension
+        output = model(image).squeeze()
+        prediction = torch.sigmoid(output).item()
+    
+    return prediction
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--ckpt_path", help="checkpoint to continue from", required=False)
 parser.add_argument("--predict", help="predict on test set", action="store_true")
 parser.add_argument("--reset", help="reset training", action="store_true")
+parser.add_argument("--predict_image", help="predict the class of a single image", action="store_true")
+parser.add_argument("--image_path", help="path to the image to predict", type=str, required=False)
 args = parser.parse_args()
 
 train_domains = [0, 1, 4]
@@ -123,6 +151,22 @@ if args.predict:
     df = pd.DataFrame({"preds": preds, "labels": labels, "domains": domains})
     filename = "preds-" + args.ckpt_path.split("/")[-1]
     df.to_csv(f"outputs/{filename}.csv", index=False)
+elif args.predict_image:
+    image_path = args.image_path
+    model = ImageClassifier.load_from_checkpoint(args.ckpt_path)
+    
+    # Define the transformations for the image
+    transform = transforms.Compose([
+        transforms.Resize((224, 224)), # Image size expected by ResNet50
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
+    
+    prediction = predict_single_image(image_path, model, transform)
+    print("prediction",prediction)
+    
+    # Output the prediction
+    print(f"Prediction for {image_path}: {'Human' if prediction <= 0.001 else 'Generated'}")
 else:
     train_dl = load_dataloader(train_domains, "train", batch_size=128, num_workers=4)
     logging.info("Training dataloader loaded")
