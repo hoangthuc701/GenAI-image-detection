@@ -101,12 +101,9 @@ early_stop_callback = EarlyStopping(
     patience=4,
     mode="min",
 )
-
 def load_image(image_path, transform=None):
-    # Open image
-    image = Image.open(image_path)
+    image = Image.open(image_path).convert('RGB')
     
-    # Apply the transformations
     if transform:
         image = transform(image)
     
@@ -115,14 +112,19 @@ def load_image(image_path, transform=None):
 def predict_single_image(image_path, model, transform=None):
     image = load_image(image_path, transform)
     
-    # Ensure the model is in evaluation mode
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    
+    model.to(device)
+    
+    image = image.to(device)
+
     model.eval()
     
-    # No gradient calculation for inference
     with torch.no_grad():
-        image = image.unsqueeze(0) # Add batch dimension
-        output = model(image).squeeze()
-        prediction = torch.sigmoid(output).item()
+        image = image.unsqueeze(0)  
+        output = model(image).squeeze() 
+        print(output)
+        prediction = torch.sigmoid(output).item()  
     
     return prediction
 
@@ -139,7 +141,7 @@ val_domains = [0, 1, 4]
 lmd_value = 0
 
 if args.predict:
-    test_dl = load_dataloader([0, 1, 2, 3, 4], "test", batch_size=128, num_workers=4)
+    test_dl = load_dataloader([0, 1, 2, 3, 4], "test", batch_size=128, num_workers=1)
     model = ImageClassifier.load_from_checkpoint(args.ckpt_path)
     trainer = pl.Trainer()
     predictions = trainer.predict(model, dataloaders=test_dl)
