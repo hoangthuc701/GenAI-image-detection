@@ -168,7 +168,7 @@ elif args.predict_image:
     print("prediction",prediction)
     
     # Output the prediction
-    print(f"Prediction for {image_path}: {'Human' if prediction <= 0.001 else 'Generated'}")
+    print(f"Prediction for {image_path}: {'Human' if prediction <= 0.5 else 'Generated'}")
 else:
     train_dl = load_dataloader(train_domains, "train", batch_size=128, num_workers=4)
     logging.info("Training dataloader loaded")
